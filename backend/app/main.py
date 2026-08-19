@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes_upload import router as upload_router
+from app.api.routes_analysis import router as analysis_router
 
 app = FastAPI(
     title="InsightOps AI API",
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(upload_router, prefix="/api")
+app.include_router(analysis_router, prefix="/api")
 
 
 @app.get("/")
