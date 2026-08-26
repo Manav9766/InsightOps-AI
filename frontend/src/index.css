@@ -1,0 +1,155 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6f8;
+  color: #17202a;
+}
+
+button {
+  border: none;
+  background: #1f6feb;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  background: #9aa4b2;
+  cursor: not-allowed;
+}
+
+input,
+textarea {
+  width: 100%;
+  font: inherit;
+}
+
+textarea {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #ccd3dc;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+th,
+td {
+  border: 1px solid #d7dee8;
+  padding: 8px;
+  text-align: left;
+  font-size: 14px;
+}
+
+th {
+  background: #eef3f8;
+}
+
+pre {
+  overflow-x: auto;
+  background: #101820;
+  color: #d6f5d6;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.app-container {
+  width: min(1100px, 92vw);
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.hero {
+  background: #101820;
+  color: white;
+  padding: 32px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  margin: 8px 0;
+  font-size: 34px;
+}
+
+.hero p {
+  max-width: 800px;
+  line-height: 1.5;
+}
+
+.eyebrow {
+  color: #80bfff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.card {
+  background: white;
+  border: 1px solid #dbe2ea;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(16, 24, 32, 0.05);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.muted {
+  color: #627084;
+}
+
+.error {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.upload-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.info-grid div {
+  background: #f7f9fb;
+  border: 1px solid #e1e8f0;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.info-grid p {
+  word-break: break-word;
+}
+
+.column-section {
+  margin-top: 18px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.result-box {
+  margin-top: 20px;
+}
