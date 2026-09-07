@@ -34,6 +34,16 @@ function DatasetProfile({ profile, dataset }) {
       </div>
 
       <div className="column-section">
+        <h3>Identifier Columns</h3>
+        <p>{profile.identifier_columns?.join(", ") || "None"}</p>
+      </div>
+
+      <div className="column-section">
+        <h3>Metric Columns</h3>
+        <p>{profile.metric_columns?.join(", ") || "None"}</p>
+      </div>
+
+      <div className="column-section">
         <h3>Numeric Columns</h3>
         <p>{profile.numeric_columns?.join(", ") || "None"}</p>
       </div>

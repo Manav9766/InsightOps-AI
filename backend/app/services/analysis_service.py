@@ -13,7 +13,17 @@ def is_identifier_column(column_name: str) -> bool:
     lowered = column_name.lower()
     return lowered == "id" or lowered.endswith("_id") or "id" in lowered
 
+def format_number(value: float) -> int | float:
+    """
+    Formats numbers for cleaner display.
+    Converts 25.0 to 25, keeps 24.47 as 24.47.
+    """
+    rounded = round(float(value), 2)
 
+    if rounded.is_integer():
+        return int(rounded)
+
+    return rounded
 def make_json_safe(value):
     """
     Converts pandas/numpy values into JSON-safe Python values.
@@ -52,11 +62,13 @@ def records_to_json_safe(records: list[dict]) -> list[dict]:
 def infer_metric_column(df: pd.DataFrame, question: str) -> str | None:
     """
     Infers the best numeric column to use as the metric.
+    Excludes identifier columns like order_id.
     """
     question_lower = question.lower()
 
     numeric_columns = [
-        column for column in df.select_dtypes(include=["number"]).columns.tolist()
+        column
+        for column in df.select_dtypes(include=["number"]).columns.tolist()
         if not is_identifier_column(column)
     ]
 
@@ -79,15 +91,15 @@ def infer_metric_column(df: pd.DataFrame, question: str) -> str | None:
 
     for column in numeric_columns:
         column_lower = column.lower()
-        for keywords in metric_keywords.values():
-            if column_lower in keywords:
+
+        for canonical_metric, keywords in metric_keywords.items():
+            if column_lower == canonical_metric or canonical_metric in column_lower:
                 for keyword in keywords:
                     if keyword in question_lower:
                         return column
 
     # Fallback: use first non-ID numeric column.
     return numeric_columns[0]
-
 
 def infer_group_column(df: pd.DataFrame, question: str) -> str | None:
     """
@@ -157,7 +169,7 @@ def run_groupby_analysis(
 
     top_result = records[0]
     top_group_value = top_result[group_column]
-    top_metric_value = round(float(top_result[metric_column]), 2)
+    top_metric_value = format_number(top_result[metric_column])
 
     if ascending:
         answer = (
@@ -192,7 +204,7 @@ def run_average_analysis(df: pd.DataFrame, question: str) -> dict:
     if metric_column is None:
         raise ValueError("No valid numeric metric column found for this question.")
 
-    average_value = round(float(df[metric_column].mean()), 2)
+    average_value = format_number(df[metric_column].mean())
 
     return {
         "answer": f"The average {metric_column} is {average_value}.",
@@ -218,7 +230,7 @@ def run_total_analysis(df: pd.DataFrame, question: str) -> dict:
     if metric_column is None:
         raise ValueError("No valid numeric metric column found for this question.")
 
-    total_value = round(float(df[metric_column].sum()), 2)
+    total_value = format_number(df[metric_column].sum())
 
     return {
         "answer": f"The total {metric_column} is {total_value}.",
@@ -272,13 +284,16 @@ def run_general_summary(profile: dict) -> dict:
     rows = profile.get("rows", 0)
     columns = profile.get("columns", 0)
     numeric_columns = profile.get("numeric_columns", [])
+    identifier_columns = profile.get("identifier_columns", [])
+    metric_columns = profile.get("metric_columns", [])
     categorical_columns = profile.get("categorical_columns", [])
     date_like_columns = profile.get("date_like_columns", [])
 
     return {
         "answer": (
             f"This dataset has {rows} rows and {columns} columns. "
-            f"It contains {len(numeric_columns)} numeric columns, "
+            f"It contains {len(metric_columns)} metric columns, "
+            f"{len(identifier_columns)} identifier columns, "
             f"{len(categorical_columns)} categorical columns, and "
             f"{len(date_like_columns)} date-like columns."
         ),
@@ -287,6 +302,8 @@ def run_general_summary(profile: dict) -> dict:
                 "rows": rows,
                 "columns": columns,
                 "numeric_columns": numeric_columns,
+                "identifier_columns": identifier_columns,
+                "metric_columns": metric_columns,
                 "categorical_columns": categorical_columns,
                 "date_like_columns": date_like_columns,
             }

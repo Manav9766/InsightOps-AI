@@ -7,6 +7,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
     question_lower = question.lower()
 
     numeric_columns = profile.get("numeric_columns", [])
+    metric_columns = profile.get("metric_columns", numeric_columns)
     categorical_columns = profile.get("categorical_columns", [])
     date_like_columns = profile.get("date_like_columns", [])
 
@@ -22,6 +23,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             "requires_grouping": False,
             "requires_metric": False,
             "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
             "available_date_columns": date_like_columns,
         }

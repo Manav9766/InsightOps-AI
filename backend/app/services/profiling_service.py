@@ -1,26 +1,70 @@
 import pandas as pd
 
+
+def is_identifier_column(column_name: str, series: pd.Series) -> bool:
+    """
+    Detects columns that are likely identifiers, not analytical metrics.
+    Examples: order_id, customer_id, transaction_id.
+    """
+    column_lower = column_name.lower()
+
+    if column_lower == "id" or column_lower.endswith("_id") or column_lower.endswith("id"):
+        return True
+
+    uniqueness_ratio = series.nunique(dropna=True) / max(len(series), 1)
+
+    if "id" in column_lower and uniqueness_ratio > 0.8:
+        return True
+
+    return False
+
+
 def detect_date_like_columns(df: pd.DataFrame) -> list[str]:
     """
-    Detects columns that can likely be parsed as dates.
+    Detects columns that are likely dates.
+
+    Important:
+    Numeric columns should not be treated as dates, because pandas can
+    incorrectly parse numbers as timestamps.
     """
     date_like_columns = []
 
     for column in df.columns:
-        if df[column].dtype == "object":
-            sample = df[column].dropna().head(20)
+        column_lower = column.lower()
 
-            if sample.empty:
-                continue
+        has_date_name = any(
+            keyword in column_lower
+            for keyword in ["date", "time", "created_at", "updated_at", "timestamp"]
+        )
 
-            try:
-                parsed = pd.to_datetime(sample, errors="coerce")
-                valid_ratio = parsed.notna().mean()
+        # Strong rule:
+        # In Phase 1, only try date parsing if the column name suggests date/time
+        # OR the dtype is already datetime.
+        if pd.api.types.is_datetime64_any_dtype(df[column]):
+            date_like_columns.append(column)
+            continue
 
-                if valid_ratio >= 0.7:
-                    date_like_columns.append(column)
-            except Exception:
-                continue
+        if not has_date_name:
+            continue
+
+        # Do not parse pure numeric columns as dates.
+        if pd.api.types.is_numeric_dtype(df[column]):
+            continue
+
+        sample = df[column].dropna().astype(str).head(50)
+
+        if sample.empty:
+            continue
+
+        try:
+            parsed = pd.to_datetime(sample, errors="coerce")
+            valid_ratio = parsed.notna().mean()
+
+            if valid_ratio >= 0.7:
+                date_like_columns.append(column)
+
+        except Exception:
+            continue
 
     return date_like_columns
 
@@ -47,21 +91,41 @@ def profile_dataset(file_path: str) -> dict:
     }
 
     missing_percentages = {
-        column: round(float((df[column].isnull().mean()) * 100), 2)
+        column: round(float(df[column].isnull().mean() * 100), 2)
         for column in df.columns
     }
 
     duplicate_rows = int(df.duplicated().sum())
 
-    numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
-    categorical_columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
     date_like_columns = detect_date_like_columns(df)
+
+    identifier_columns = [
+        column
+        for column in df.columns
+        if is_identifier_column(column, df[column])
+    ]
+
+    numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
+
+    metric_columns = [
+        column
+        for column in numeric_columns
+        if column not in identifier_columns
+    ]
+
+    categorical_columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
+
+    categorical_columns = [
+        column
+        for column in categorical_columns
+        if column not in date_like_columns
+    ]
 
     summary_statistics = {}
 
-    if numeric_columns:
+    if metric_columns:
         summary_statistics = (
-            df[numeric_columns]
+            df[metric_columns]
             .describe()
             .round(2)
             .fillna("")
@@ -79,6 +143,8 @@ def profile_dataset(file_path: str) -> dict:
         "missing_percentages": missing_percentages,
         "duplicate_rows": duplicate_rows,
         "numeric_columns": numeric_columns,
+        "identifier_columns": identifier_columns,
+        "metric_columns": metric_columns,
         "categorical_columns": categorical_columns,
         "date_like_columns": date_like_columns,
         "summary_statistics": summary_statistics,
