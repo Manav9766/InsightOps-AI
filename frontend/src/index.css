@@ -153,3 +153,20 @@ pre {
 .result-box {
   margin-top: 20px;
 }
+.suggestion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.suggestion-button {
+  background: #eef3f8;
+  color: #17202a;
+  border: 1px solid #ccd3dc;
+  font-weight: 600;
+}
+
+.suggestion-button:hover {
+  background: #dbeafe;
+}
