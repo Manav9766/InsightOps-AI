@@ -1,3 +1,4 @@
+import ResultChart from "./ResultChart";
 function AnalysisResult({ result }) {
   if (!result) return null;
 
@@ -12,7 +13,7 @@ function AnalysisResult({ result }) {
         <h3>Computed Answer</h3>
         <p>{result.answer}</p>
       </div>
-
+      <ResultChart chart={result.chart} />
       <div className="result-box">
         <h3>Analysis Plan</h3>
         <p>
