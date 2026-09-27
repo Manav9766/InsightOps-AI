@@ -46,7 +46,15 @@ function SuggestedQuestions({ profile, onSelectQuestion }) {
     label: "Give me a summary of this dataset",
     value: "Give me a summary of this dataset",
   });
-
+  if (
+  profile.date_like_columns?.length > 0 &&
+  primaryMetric
+) {
+  suggestions.push({
+    label: `Show me the monthly ${formatColumnName(primaryMetric)} trend`,
+    value: `Show me the monthly ${primaryMetric} trend`,
+  });
+}
   return (
     <section className="card">
       <h2>Suggested Questions</h2>

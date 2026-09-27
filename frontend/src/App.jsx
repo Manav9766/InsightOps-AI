@@ -8,6 +8,19 @@ import QuestionBox from "./components/QuestionBox";
 import AnalysisResult from "./components/AnalysisResult";
 
 function App() {
+  const [theme, setTheme] = useState(document.documentElement.dataset.theme);
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = nextTheme;
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem("insightops-theme", nextTheme);
+    } catch {
+      // Theme switching still works when browser storage is unavailable.
+    }
+  }
+
   const [dataset, setDataset] = useState(null);
   const [profile, setProfile] = useState(null);
   const [question, setQuestion] = useState(
@@ -39,7 +52,18 @@ function App() {
   return (
     <main className="app-container">
       <header className="hero">
-        <p className="eyebrow">InsightOps AI</p>
+        <div className="hero-toolbar">
+          <p className="eyebrow">InsightOps AI</p>
+          <button
+            type="button"
+            className="theme-toggle"
+            aria-label="Dark mode"
+            aria-pressed={theme === "dark"}
+            onClick={toggleTheme}
+          >
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </button>
+        </div>
         <h1>Agentic Data Analyst & Business Intelligence Platform</h1>
         <p>
           Upload a dataset, inspect its profile, ask a business question, and
