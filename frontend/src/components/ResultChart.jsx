@@ -47,11 +47,37 @@ function ResultChart({ chart }) {
               <XAxis dataKey={chart.x_key} />
               <YAxis />
               <Tooltip />
+
               <Line
                 type="monotone"
                 dataKey={chart.y_key}
               />
             </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  }
+
+  if (chart.type === "histogram") {
+    return (
+      <div className="result-box">
+        <h3>{chart.title}</h3>
+
+        <div className="chart-container">
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={chart.data}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey={chart.x_key}
+                angle={-20}
+                textAnchor="end"
+                height={70}
+              />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey={chart.y_key} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>

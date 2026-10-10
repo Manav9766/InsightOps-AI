@@ -183,16 +183,23 @@ def run_groupby_analysis(
         )
 
     return {
-        "answer": answer,
-        "table": records,
-        "calculation_trace": {
-            "operation": "groupby_sum",
-            "group_by": group_column,
-            "metric": metric_column,
-            "sort_direction": sort_direction,
-            "rows_returned": len(records),
-        }
+    "answer": answer,
+    "table": records,
+    "chart": create_chart_config(
+        chart_type="bar",
+        title=f"Total {metric_column} by {group_column}",
+        data=records,
+        x_key=group_column,
+        y_key=metric_column,
+    ),
+    "calculation_trace": {
+        "operation": "groupby_sum",
+        "group_by": group_column,
+        "metric": metric_column,
+        "sort_direction": sort_direction,
+        "rows_returned": len(records),
     }
+}
 
 
 def run_average_analysis(df: pd.DataFrame, question: str) -> dict:
@@ -343,6 +350,16 @@ def answer_dataset_question(dataset_id: str, question: str) -> dict:
     elif analysis_type == "missing_value_summary":
         result = run_missing_value_analysis(profile)
 
+    elif analysis_type == "time_trend":
+        result = run_trend_analysis(
+            df=df,
+            question=question,
+            profile=profile,
+        )
+
+    elif analysis_type == "distribution":
+        result = run_distribution_analysis(df, question)
+
     else:
         result = run_general_summary(profile)
 
@@ -352,5 +369,141 @@ def answer_dataset_question(dataset_id: str, question: str) -> dict:
         "analysis_plan": analysis_plan,
         "answer": result["answer"],
         "table": result["table"],
+        "chart": result.get("chart"),
         "calculation_trace": result["calculation_trace"],
+    }
+
+
+def create_chart_config(
+    chart_type: str,
+    title: str,
+    data: list[dict],
+    x_key: str,
+    y_key: str | None = None,
+) -> dict:
+    """
+    Creates a standardized chart configuration for the frontend.
+    """
+    return {
+        "type": chart_type,
+        "title": title,
+        "x_key": x_key,
+        "y_key": y_key,
+        "data": data,
+    }
+def run_trend_analysis(
+    df: pd.DataFrame,
+    question: str,
+    profile: dict,
+) -> dict:
+    """
+    Runs a time-based trend analysis using a detected date column.
+    """
+    date_columns = profile.get("date_like_columns", [])
+
+    if not date_columns:
+        raise ValueError("No date-like column found for trend analysis.")
+
+    date_column = date_columns[0]
+    metric_column = infer_metric_column(df, question)
+
+    if metric_column is None:
+        raise ValueError("No valid numeric metric column found for trend analysis.")
+
+    working_df = df.copy()
+
+    working_df[date_column] = pd.to_datetime(
+        working_df[date_column],
+        errors="coerce",
+    )
+
+    working_df = working_df.dropna(subset=[date_column])
+
+    working_df["period"] = working_df[date_column].dt.to_period("M").astype(str)
+
+    result_df = (
+        working_df.groupby("period")[metric_column]
+        .sum()
+        .reset_index()
+        .sort_values("period")
+    )
+
+    records = records_to_json_safe(
+        result_df.to_dict(orient="records")
+    )
+
+    return {
+        "answer": (
+            f"Calculated the monthly {metric_column} trend "
+            f"across {len(records)} periods."
+        ),
+        "table": records,
+        "chart": create_chart_config(
+            chart_type="line",
+            title=f"Monthly {metric_column} trend",
+            data=records,
+            x_key="period",
+            y_key=metric_column,
+        ),
+        "calculation_trace": {
+            "operation": "monthly_trend",
+            "date_column": date_column,
+            "metric": metric_column,
+            "periods_returned": len(records),
+        },
+    }
+def run_distribution_analysis(
+    df: pd.DataFrame,
+    question: str,
+) -> dict:
+    """
+    Creates a histogram-style distribution analysis
+    for a numeric metric column.
+    """
+    metric_column = infer_metric_column(df, question)
+
+    if metric_column is None:
+        raise ValueError(
+            "No valid numeric metric column found for distribution analysis."
+        )
+
+    series = df[metric_column].dropna()
+
+    if series.empty:
+        raise ValueError(
+            f"No valid values found in metric column: {metric_column}"
+        )
+
+    counts, bin_edges = np.histogram(series, bins="auto")
+
+    records = []
+
+    for index, count in enumerate(counts):
+        bin_start = round(float(bin_edges[index]), 2)
+        bin_end = round(float(bin_edges[index + 1]), 2)
+
+        records.append({
+            "range": f"{bin_start} - {bin_end}",
+            "count": int(count),
+        })
+
+    return {
+        "answer": (
+            f"Calculated the distribution of {metric_column} "
+            f"across {len(records)} value ranges."
+        ),
+        "table": records,
+        "chart": create_chart_config(
+            chart_type="histogram",
+            title=f"Distribution of {metric_column}",
+            data=records,
+            x_key="range",
+            y_key="count",
+        ),
+        "calculation_trace": {
+            "operation": "histogram",
+            "metric": metric_column,
+            "bins": len(records),
+            "values_analyzed": int(series.count()),
+        },
     }

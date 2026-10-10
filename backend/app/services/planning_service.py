@@ -11,6 +11,13 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
     categorical_columns = profile.get("categorical_columns", [])
     date_like_columns = profile.get("date_like_columns", [])
 
+    base_columns = {
+        "available_numeric_columns": numeric_columns,
+        "available_metric_columns": metric_columns,
+        "available_categorical_columns": categorical_columns,
+        "available_date_columns": date_like_columns,
+    }
+
     if "missing" in question_lower or "null" in question_lower:
         return {
             "analysis_type": "missing_value_summary",
@@ -22,6 +29,28 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             ],
             "requires_grouping": False,
             "requires_metric": False,
+            "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
+            "available_categorical_columns": categorical_columns,
+            "available_date_columns": date_like_columns,
+        }
+
+    if any(
+        word in question_lower
+        for word in ["trend", "over time", "monthly", "month", "timeline"]
+    ):
+        return {
+            "analysis_type": "time_trend",
+            "steps": [
+                "Identify the date column",
+                "Identify the numeric metric",
+                "Convert the date column to datetime",
+                "Aggregate the metric by month",
+                "Sort the periods chronologically",
+                "Return the trend table and visualization",
+            ],
+            "requires_grouping": True,
+            "requires_metric": True,
             "available_numeric_columns": numeric_columns,
             "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
@@ -42,6 +71,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             "requires_grouping": True,
             "requires_metric": True,
             "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
             "available_date_columns": date_like_columns,
         }
@@ -60,8 +90,33 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             "requires_grouping": True,
             "requires_metric": True,
             "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
             "available_date_columns": date_like_columns,
+        }
+
+    if any(
+        phrase in question_lower
+        for phrase in [
+            "distribution",
+            "histogram",
+            "spread",
+            "frequency",
+            "range of",
+        ]
+    ):
+        return {
+            "analysis_type": "distribution",
+            "steps": [
+                "Identify the numeric metric column",
+                "Remove missing values",
+                "Calculate histogram bins",
+                "Count values inside each range",
+                "Return the distribution table and histogram",
+            ],
+            "requires_grouping": False,
+            "requires_metric": True,
+            **base_columns,
         }
 
     if any(word in question_lower for word in ["average", "avg", "mean"]):
@@ -75,6 +130,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             "requires_grouping": False,
             "requires_metric": True,
             "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
             "available_date_columns": date_like_columns,
         }
@@ -90,6 +146,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
             "requires_grouping": False,
             "requires_metric": True,
             "available_numeric_columns": numeric_columns,
+            "available_metric_columns": metric_columns,
             "available_categorical_columns": categorical_columns,
             "available_date_columns": date_like_columns,
         }
@@ -104,6 +161,7 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
         "requires_grouping": False,
         "requires_metric": False,
         "available_numeric_columns": numeric_columns,
+        "available_metric_columns": metric_columns,
         "available_categorical_columns": categorical_columns,
         "available_date_columns": date_like_columns,
     }

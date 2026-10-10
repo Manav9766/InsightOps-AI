@@ -54,7 +54,13 @@ function SuggestedQuestions({ profile, onSelectQuestion }) {
     label: `Show me the monthly ${formatColumnName(primaryMetric)} trend`,
     value: `Show me the monthly ${primaryMetric} trend`,
   });
-}
+  }
+  if (primaryMetric) {
+  suggestions.push({
+    label: `Show the distribution of ${formatColumnName(primaryMetric)}`,
+    value: `Show the distribution of ${primaryMetric}`,
+  });
+  }
   return (
     <section className="card">
       <h2>Suggested Questions</h2>
