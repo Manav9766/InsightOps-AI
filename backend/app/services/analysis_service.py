@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+from app.services.chart_service import recommend_chart
 from app.services.file_service import get_dataset_file_path
 from app.services.profiling_service import profile_dataset
 from app.services.planning_service import create_analysis_plan
@@ -183,23 +184,20 @@ def run_groupby_analysis(
         )
 
     return {
-    "answer": answer,
-    "table": records,
-    "chart": create_chart_config(
-        chart_type="bar",
-        title=f"Total {metric_column} by {group_column}",
-        data=records,
-        x_key=group_column,
-        y_key=metric_column,
-    ),
-    "calculation_trace": {
-        "operation": "groupby_sum",
-        "group_by": group_column,
-        "metric": metric_column,
-        "sort_direction": sort_direction,
-        "rows_returned": len(records),
+        "answer": answer,
+        "table": records,
+        "metadata": {
+            "group_column": group_column,
+            "metric_column": metric_column,
+        },
+        "calculation_trace": {
+            "operation": "groupby_sum",
+            "group_by": group_column,
+            "metric": metric_column,
+            "sort_direction": sort_direction,
+            "rows_returned": len(records),
+        },
     }
-}
 
 
 def run_average_analysis(df: pd.DataFrame, question: str) -> dict:
@@ -363,34 +361,27 @@ def answer_dataset_question(dataset_id: str, question: str) -> dict:
     else:
         result = run_general_summary(profile)
 
+    metadata = result.get("metadata", {})
+    chart = recommend_chart(
+        analysis_type=analysis_type,
+        table=result["table"],
+        group_column=metadata.get("group_column"),
+        metric_column=metadata.get("metric_column"),
+        date_column=metadata.get("date_column"),
+    )
+
     return {
         "dataset_id": dataset_id,
         "question": question,
         "analysis_plan": analysis_plan,
         "answer": result["answer"],
         "table": result["table"],
-        "chart": result.get("chart"),
+        "chart": chart,
         "calculation_trace": result["calculation_trace"],
     }
 
 
-def create_chart_config(
-    chart_type: str,
-    title: str,
-    data: list[dict],
-    x_key: str,
-    y_key: str | None = None,
-) -> dict:
-    """
-    Creates a standardized chart configuration for the frontend.
-    """
-    return {
-        "type": chart_type,
-        "title": title,
-        "x_key": x_key,
-        "y_key": y_key,
-        "data": data,
-    }
+
 def run_trend_analysis(
     df: pd.DataFrame,
     question: str,
@@ -438,13 +429,10 @@ def run_trend_analysis(
             f"across {len(records)} periods."
         ),
         "table": records,
-        "chart": create_chart_config(
-            chart_type="line",
-            title=f"Monthly {metric_column} trend",
-            data=records,
-            x_key="period",
-            y_key=metric_column,
-        ),
+        "metadata": {
+            "metric_column": metric_column,
+            "date_column": date_column,
+        },
         "calculation_trace": {
             "operation": "monthly_trend",
             "date_column": date_column,
@@ -493,13 +481,9 @@ def run_distribution_analysis(
             f"across {len(records)} value ranges."
         ),
         "table": records,
-        "chart": create_chart_config(
-            chart_type="histogram",
-            title=f"Distribution of {metric_column}",
-            data=records,
-            x_key="range",
-            y_key="count",
-        ),
+        "metadata": {
+            "metric_column": metric_column,
+        },
         "calculation_trace": {
             "operation": "histogram",
             "metric": metric_column,
