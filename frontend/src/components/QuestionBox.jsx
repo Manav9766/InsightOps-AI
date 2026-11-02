@@ -1,49 +1,111 @@
-import { askDatasetQuestion } from "../api/client";
 
 function QuestionBox({
   datasetId,
   question,
   setQuestion,
-  onAnalysisResult,
+  plannerMode,
+  setPlannerMode,
+  onAnalyze,
+  isAnalyzing,
+  error,
 }) {
-  async function handleAnalyze() {
-    if (!datasetId) {
-      alert("Please upload a dataset first.");
-      return;
-    }
-
-    if (!question.trim()) {
-      alert("Please enter a question.");
-      return;
-    }
-
-    try {
-      const result = await askDatasetQuestion(datasetId, question);
-      onAnalysisResult(result);
-    } catch (err) {
-      const message =
-        err.response?.data?.detail || "Failed to analyze the dataset.";
-      alert(message);
-    }
+  function handleSubmit(event) {
+    event.preventDefault();
+    onAnalyze();
   }
 
   return (
     <section className="card">
       <h2>Ask a Business Question</h2>
+
       <p className="muted">
-        The system creates an analysis plan and runs pandas calculations.
+        Select an analysis mode and ask a question about
+        your uploaded dataset.
       </p>
 
-      <textarea
-        value={question}
-        onChange={(event) => setQuestion(event.target.value)}
-        rows="3"
-        placeholder="Ask a question about the dataset..."
-      />
+      <div className="planner-section">
+        <h3>Analysis Mode</h3>
 
-      <button onClick={handleAnalyze} disabled={!datasetId}>
-        Analyze
-      </button>
+        <div
+          className="planner-mode-switch"
+          role="group"
+          aria-label="Analysis mode"
+        >
+          <button
+            type="button"
+            className={`planner-mode-button ${
+              plannerMode === "ai" ? "active" : ""
+            }`}
+            aria-pressed={plannerMode === "ai"}
+            disabled={isAnalyzing}
+            onClick={() => setPlannerMode("ai")}
+          >
+            AI Planner
+          </button>
+
+          <button
+            type="button"
+            className={`planner-mode-button ${
+              plannerMode === "rule" ? "active" : ""
+            }`}
+            aria-pressed={plannerMode === "rule"}
+            disabled={isAnalyzing}
+            onClick={() => setPlannerMode("rule")}
+          >
+            Rule-based
+          </button>
+        </div>
+
+        <p className="muted planner-description">
+          {plannerMode === "ai"
+            ? "OpenAI interprets your question and generates a validated analysis plan. Pandas performs the calculations."
+            : "Uses the existing rule-based planner without making an OpenAI API request."}
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="business-question">
+          <strong>Your Question</strong>
+        </label>
+
+        <textarea
+          id="business-question"
+          value={question}
+          onChange={(event) =>
+            setQuestion(event.target.value)
+          }
+          rows={3}
+          placeholder="Ask a question about the dataset..."
+          disabled={isAnalyzing}
+        />
+
+        <button
+          type="submit"
+          disabled={
+            isAnalyzing ||
+            !datasetId ||
+            !question.trim()
+          }
+        >
+          {isAnalyzing
+            ? "Analyzing..."
+            : "Analyze"}
+        </button>
+
+        {isAnalyzing && (
+          <p className="muted" role="status">
+            {plannerMode === "ai"
+              ? "Generating AI plan and running pandas analysis..."
+              : "Running pandas analysis..."}
+          </p>
+        )}
+
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+      </form>
     </section>
   );
 }
