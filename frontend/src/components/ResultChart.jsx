@@ -3,6 +3,8 @@ import {
   Bar,
   LineChart,
   Line,
+  ScatterChart,
+  Scatter,
   XAxis,
   YAxis,
   Tooltip,
@@ -83,6 +85,37 @@ function ResultChart({ chart }) {
       </div>
     );
   }
+  if (chart.type === "scatter") {
+  return (
+    <div className="result-box">
+      <h3>{chart.title}</h3>
+
+      <div className="chart-container">
+        <ResponsiveContainer width="100%" height={320}>
+          <ScatterChart>
+            <CartesianGrid strokeDasharray="3 3" />
+
+            <XAxis
+              type="number"
+              dataKey={chart.x_key}
+              name={chart.x_key}
+            />
+
+            <YAxis
+              type="number"
+              dataKey={chart.y_key}
+              name={chart.y_key}
+            />
+
+            <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+
+            <Scatter data={chart.data} />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
 
   return null;
 }

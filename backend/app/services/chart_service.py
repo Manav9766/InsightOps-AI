@@ -4,6 +4,8 @@ def recommend_chart(
     group_column: str | None = None,
     metric_column: str | None = None,
     date_column: str | None = None,
+    x_column: str | None = None,
+    y_column: str | None = None,
 ) -> dict | None:
     """Recommend a chart configuration based on the analysis result."""
     if not table:
@@ -42,6 +44,17 @@ def recommend_chart(
             "title": f"Distribution of {metric_column}",
             "x_key": "range",
             "y_key": "count",
+            "data": table,
+        }
+    if analysis_type == "correlation":
+        if not x_column or not y_column:
+            return None
+
+        return {
+            "type": "scatter",
+            "title": f"{y_column} vs {x_column}",
+            "x_key": x_column,
+            "y_key": y_column,
             "data": table,
         }
 

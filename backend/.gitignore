@@ -1,0 +1,12 @@
+# Python
+venv/
+**/__pycache__/
+*.pyc
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded datasets
+app/storage/uploads/

@@ -139,16 +139,21 @@ def infer_group_column(df: pd.DataFrame, question: str) -> str | None:
     return candidate_columns[0]
 
 
+
 def run_groupby_analysis(
     df: pd.DataFrame,
     question: str,
-    sort_direction: str
+    sort_direction: str,
+    *,
+    metric_column: str | None = None,
+    group_column: str | None = None,
 ) -> dict:
     """
-    Runs groupby aggregation for highest/top/best or lowest/worst/least questions.
+    Runs grouped aggregation using explicitly selected
+    columns, falling back to rule-based inference.
     """
-    metric_column = infer_metric_column(df, question)
-    group_column = infer_group_column(df, question)
+    metric_column = metric_column or infer_metric_column(df, question)
+    group_column = group_column or infer_group_column(df, question)
 
     if metric_column is None:
         raise ValueError("No valid numeric metric column found for this question.")
@@ -204,7 +209,7 @@ def run_average_analysis(df: pd.DataFrame, question: str) -> dict:
     """
     Calculates the average of a numeric metric.
     """
-    metric_column = infer_metric_column(df, question)
+    metric_column = metric_column or infer_metric_column(df, question)
 
     if metric_column is None:
         raise ValueError("No valid numeric metric column found for this question.")
@@ -230,7 +235,7 @@ def run_total_analysis(df: pd.DataFrame, question: str) -> dict:
     """
     Calculates the total of a numeric metric.
     """
-    metric_column = infer_metric_column(df, question)
+    metric_column = metric_column or infer_metric_column(df, question)
 
     if metric_column is None:
         raise ValueError("No valid numeric metric column found for this question.")
@@ -319,25 +324,50 @@ def run_general_summary(profile: dict) -> dict:
     }
 
 
+
 def answer_dataset_question(dataset_id: str, question: str) -> dict:
     """
-    Main Phase 1 analysis function.
-
-    Loads dataset, creates analysis plan, runs pandas calculation,
-    and returns a grounded answer.
+    Loads a dataset, creates an analysis plan,
+    executes the appropriate pandas analysis,
+    and generates a recommended chart.
     """
     file_path = get_dataset_file_path(dataset_id)
+
     df = pd.read_csv(file_path)
     profile = profile_dataset(file_path)
 
     analysis_plan = create_analysis_plan(question, profile)
     analysis_type = analysis_plan["analysis_type"]
 
+    # Execute the analysis selected by the planner.
     if analysis_type == "groupby_aggregation_desc":
-        result = run_groupby_analysis(df, question, sort_direction="desc")
+        result = run_groupby_analysis(
+            df, question, sort_direction="desc"
+        )
 
     elif analysis_type == "groupby_aggregation_asc":
-        result = run_groupby_analysis(df, question, sort_direction="asc")
+        result = run_groupby_analysis(
+            df, question, sort_direction="asc"
+        )
+
+    elif analysis_type == "time_trend":
+        result = run_trend_analysis(
+            df=df,
+            question=question,
+            profile=profile,
+        )
+
+    elif analysis_type == "distribution":
+        result = run_distribution_analysis(
+            df=df,
+            question=question,
+        )
+
+    elif analysis_type == "correlation":
+        result = run_correlation_analysis(
+            df=df,
+            question=question,
+        )
 
     elif analysis_type == "average_metric":
         result = run_average_analysis(df, question)
@@ -348,26 +378,25 @@ def answer_dataset_question(dataset_id: str, question: str) -> dict:
     elif analysis_type == "missing_value_summary":
         result = run_missing_value_analysis(profile)
 
-    elif analysis_type == "time_trend":
-        result = run_trend_analysis(
-            df=df,
-            question=question,
-            profile=profile,
-        )
-
-    elif analysis_type == "distribution":
-        result = run_distribution_analysis(df, question)
-
-    else:
+    elif analysis_type == "general_summary":
         result = run_general_summary(profile)
 
+    else:
+        raise ValueError(
+            f"Unsupported analysis type: {analysis_type}"
+        )
+
+    # Generate chart using analysis metadata.
     metadata = result.get("metadata", {})
+
     chart = recommend_chart(
         analysis_type=analysis_type,
         table=result["table"],
         group_column=metadata.get("group_column"),
         metric_column=metadata.get("metric_column"),
         date_column=metadata.get("date_column"),
+        x_column=metadata.get("x_column"),
+        y_column=metadata.get("y_column"),
     )
 
     return {
@@ -382,24 +411,28 @@ def answer_dataset_question(dataset_id: str, question: str) -> dict:
 
 
 
+
+
 def run_trend_analysis(
     df: pd.DataFrame,
     question: str,
     profile: dict,
+    *,
+    date_column: str | None = None,
+    metric_column: str | None = None,
 ) -> dict:
-    """
-    Runs a time-based trend analysis using a detected date column.
-    """
     date_columns = profile.get("date_like_columns", [])
 
-    if not date_columns:
-        raise ValueError("No date-like column found for trend analysis.")
+    if date_column is None:
+        if not date_columns:
+            raise ValueError("No date-like column found.")
+        date_column = date_columns[0]
 
-    date_column = date_columns[0]
-    metric_column = infer_metric_column(df, question)
+    metric_column = metric_column or infer_metric_column(df, question)
 
     if metric_column is None:
-        raise ValueError("No valid numeric metric column found for trend analysis.")
+        raise ValueError("No numeric metric found.")
+
 
     working_df = df.copy()
 
@@ -448,7 +481,7 @@ def run_distribution_analysis(
     Creates a histogram-style distribution analysis
     for a numeric metric column.
     """
-    metric_column = infer_metric_column(df, question)
+    metric_column = metric_column or infer_metric_column(df, question)
 
     if metric_column is None:
         raise ValueError(
@@ -489,5 +522,114 @@ def run_distribution_analysis(
             "metric": metric_column,
             "bins": len(records),
             "values_analyzed": int(series.count()),
+        },
+    }
+
+def infer_numeric_columns_from_question(
+    df: pd.DataFrame,
+    question: str,
+) -> list[str]:
+    """
+    Finds numeric metric columns explicitly mentioned in the question.
+    Identifier columns are excluded.
+    """
+    question_lower = question.lower()
+
+    numeric_columns = [
+        column
+        for column in df.select_dtypes(include=["number"]).columns.tolist()
+        if not is_identifier_column(column)
+    ]
+
+    matched_columns = []
+
+    for column in numeric_columns:
+        if column.lower() in question_lower:
+            matched_columns.append(column)
+
+    return matched_columns
+
+
+def run_correlation_analysis(
+    df: pd.DataFrame,
+    question: str,
+    *,
+    x_column: str | None = None,
+    y_column: str | None = None,
+) -> dict:
+    if x_column is None or y_column is None:
+        matched_columns = infer_numeric_columns_from_question(
+            df, question
+        )
+
+        if len(matched_columns) < 2:
+            raise ValueError(
+                "Please mention two numeric metrics."
+            )
+
+        x_column = matched_columns[0]
+        y_column = matched_columns[1]
+
+
+    working_df = (
+        df[[x_column, y_column]]
+        .dropna()
+        .copy()
+    )
+
+    if len(working_df) < 2:
+        raise ValueError(
+            "Not enough valid rows to calculate correlation."
+        )
+
+    correlation = working_df[x_column].corr(working_df[y_column])
+
+    if pd.isna(correlation):
+        raise ValueError(
+            "Correlation could not be calculated for these columns."
+        )
+
+    correlation = round(float(correlation), 3)
+
+    absolute_correlation = abs(correlation)
+
+    if absolute_correlation >= 0.7:
+        strength = "strong"
+    elif absolute_correlation >= 0.4:
+        strength = "moderate"
+    elif absolute_correlation >= 0.2:
+        strength = "weak"
+    else:
+        strength = "very weak"
+
+    if correlation > 0:
+        direction = "positive"
+    elif correlation < 0:
+        direction = "negative"
+    else:
+        direction = "no"
+
+    records = records_to_json_safe(
+        working_df.to_dict(orient="records")
+    )
+
+    return {
+        "answer": (
+            f"The correlation between {x_column} and {y_column} "
+            f"is {correlation}, indicating a {strength} "
+            f"{direction} relationship."
+        ),
+        "table": records,
+        "metadata": {
+            "x_column": x_column,
+            "y_column": y_column,
+            "correlation": correlation,
+        },
+        "calculation_trace": {
+            "operation": "correlation",
+            "x_metric": x_column,
+            "y_metric": y_column,
+            "correlation": correlation,
+            "rows_analyzed": len(records),
         },
     }

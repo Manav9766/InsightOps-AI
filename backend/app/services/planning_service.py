@@ -96,6 +96,31 @@ def create_analysis_plan(question: str, profile: dict) -> dict:
         }
 
     if any(
+    phrase in question_lower
+    for phrase in [
+        "correlation",
+        "correlated",
+        "related to",
+        "relationship between",
+        "vs",
+        "versus",
+    ]
+    ):
+        return {
+        "analysis_type": "correlation",
+        "steps": [
+            "Identify two numeric metric columns",
+            "Remove rows with missing values",
+            "Calculate the correlation coefficient",
+            "Interpret relationship strength and direction",
+            "Return scatter plot data and correlation result",
+        ],
+        "requires_grouping": False,
+        "requires_metric": True,
+        **base_columns,
+    }
+
+    if any(
         phrase in question_lower
         for phrase in [
             "distribution",

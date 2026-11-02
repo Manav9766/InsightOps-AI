@@ -13,7 +13,14 @@ function SuggestedQuestions({ profile, onSelectQuestion }) {
     : metricColumns[0];
 
   const suggestions = [];
+  const metrics = profile.metric_columns || [];
 
+if (metrics.length >= 2) {
+  suggestions.push({
+    label: `Is ${formatColumnName(metrics[0])} related to ${formatColumnName(metrics[1])}?`,
+    value: `Is ${metrics[0]} related to ${metrics[1]}?`,
+  });
+}
   if (primaryMetric && categoricalColumns.length > 0) {
     categoricalColumns.forEach((column) => {
       suggestions.push({
