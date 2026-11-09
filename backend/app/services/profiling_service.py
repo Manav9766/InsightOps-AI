@@ -113,7 +113,9 @@ def profile_dataset(file_path: str) -> dict:
         if column not in identifier_columns
     ]
 
-    categorical_columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    categorical_columns = df.select_dtypes(
+        include=["object", "str", "category"]
+    ).columns.tolist()
 
     categorical_columns = [
         column

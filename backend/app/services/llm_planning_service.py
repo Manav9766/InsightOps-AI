@@ -52,38 +52,53 @@ Return only the structured plan.
 """
 
 
+
 def validate_analysis_plan(
     plan: LLMAnalysisPlan,
     profile: dict,
 ) -> None:
     """
-    Verify that the plan references valid dataset columns
-    and satisfies the requirements of its operation.
+    Validates an LLM-generated analysis plan.
+
+    Checks:
+    - Supported analysis type
+    - Actual dataset columns
+    - Metric eligibility
+    - Required and forbidden parameters
+    - Correlation metric uniqueness
     """
+
+    analysis_type = plan.analysis_type
+
     metrics = set(profile.get("metric_columns", []))
     categories = set(profile.get("categorical_columns", []))
     dates = set(profile.get("date_like_columns", []))
 
-    if not plan.supported or plan.analysis_type == "unsupported":
+    if analysis_type == "unsupported" or not plan.supported:
         raise ValueError(
             f"Unsupported analysis request: {plan.explanation}"
         )
 
-    if any(col not in metrics for col in plan.metric_columns):
-        raise ValueError(
-            "The analysis plan contains an invalid metric column."
-        )
+    # Never allow invented or identifier columns as metrics.
+    for column in plan.metric_columns:
+        if column not in metrics:
+            raise ValueError(
+                f"Invalid metric column: {column}"
+            )
+
+    if len(plan.metric_columns) != len(set(plan.metric_columns)):
+        raise ValueError("Duplicate metric columns are not allowed.")
 
     if plan.group_column is not None:
         if plan.group_column not in categories:
             raise ValueError(
-                "The analysis plan contains an invalid grouping column."
+                f"Invalid grouping column: {plan.group_column}"
             )
 
     if plan.date_column is not None:
         if plan.date_column not in dates:
             raise ValueError(
-                "The analysis plan contains an invalid date column."
+                f"Invalid date column: {plan.date_column}"
             )
 
     grouped_types = {
@@ -92,43 +107,83 @@ def validate_analysis_plan(
     }
 
     single_metric_types = {
-        "time_trend",
-        "distribution",
         "average_metric",
         "total_metric",
+        "distribution",
+        "time_trend",
     }
 
-    if plan.analysis_type in grouped_types:
-        if (
-            len(plan.metric_columns) != 1
-            or plan.group_column is None
-        ):
-            raise ValueError(
-                "Grouped analysis requires one metric and one category."
-            )
+    summary_types = {
+        "missing_value_summary",
+        "general_summary",
+    }
 
-    elif plan.analysis_type in single_metric_types:
+    # Grouped comparisons require one metric and category.
+    if analysis_type in grouped_types:
         if len(plan.metric_columns) != 1:
             raise ValueError(
-                "This analysis requires exactly one metric."
+                "Grouped analysis requires exactly one metric."
             )
 
-        if (
-            plan.analysis_type == "time_trend"
-            and plan.date_column is None
-        ):
+        if plan.group_column is None:
             raise ValueError(
-                "Time trend analysis requires a date column."
+                "Grouped analysis requires a grouping column."
             )
 
-    elif plan.analysis_type == "correlation":
+        if plan.date_column is not None:
+            raise ValueError(
+                "Grouped analysis must not specify a date column."
+            )
+
+    # Mean, sum, histogram and trend require one metric.
+    elif analysis_type in single_metric_types:
+        if len(plan.metric_columns) != 1:
+            raise ValueError(
+                "Analysis requires exactly one metric."
+            )
+
+        if plan.group_column is not None:
+            raise ValueError(
+                "This operation does not support grouping."
+            )
+
+        if analysis_type == "time_trend":
+            if plan.date_column is None:
+                raise ValueError(
+                    "Time trend requires a date column."
+                )
+        elif plan.date_column is not None:
+            raise ValueError(
+                "This operation does not require a date column."
+            )
+
+    # Correlation requires two different numeric metrics.
+    elif analysis_type == "correlation":
+        if len(plan.metric_columns) != 2:
+            raise ValueError(
+                "Correlation requires two distinct metrics."
+            )
+
+        if plan.group_column is not None or plan.date_column is not None:
+            raise ValueError(
+                "Correlation does not support group/date parameters."
+            )
+
+    # Summary operations need no metric or grouping selection.
+    elif analysis_type in summary_types:
         if (
-            len(plan.metric_columns) != 2
-            or len(set(plan.metric_columns)) != 2
+            plan.metric_columns
+            or plan.group_column is not None
+            or plan.date_column is not None
         ):
             raise ValueError(
-                "Correlation requires two distinct numeric metrics."
+                "Summary analysis must not specify metric, group, or date columns."
             )
+
+    else:
+        raise ValueError(
+            f"Unsupported analysis type: {analysis_type}"
+        )
 
 
 def create_llm_analysis_plan(
