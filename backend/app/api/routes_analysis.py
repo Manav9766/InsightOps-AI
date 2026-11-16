@@ -4,6 +4,7 @@ from app.models.schemas import AnalysisQuestionRequest
 from app.services.analysis_service import answer_dataset_question
 
 from openai import OpenAIError
+from app.services.insight_service import generate_insight_draft
 
 from app.services.file_service import get_dataset_file_path
 from app.services.profiling_service import profile_dataset
@@ -121,4 +122,48 @@ def execute_llm_analysis(
         raise HTTPException(
             status_code=503,
             detail="AI planning service is not configured.",
+        )
+
+@router.post("/analysis/insights/preview")
+def preview_insight_draft(
+    request: AnalysisQuestionRequest,
+):
+    """
+    Generates an AI business insight draft
+    using independently verified calculations.
+    """
+    try:
+        return generate_insight_draft(
+            dataset_id=request.dataset_id,
+            question=request.question,
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        )
+
+    except OpenAIError:
+        raise HTTPException(
+            status_code=502,
+            detail="AI insight generation is unavailable.",
+        )
+
+    except RuntimeError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI insight service is not configured.",
+        )
+
+    except ArithmeticError:
+        raise HTTPException(
+            status_code=500,
+            detail="Independent calculation verification failed.",
         )
