@@ -5,6 +5,10 @@ from app.services.analysis_service import answer_dataset_question
 
 from openai import OpenAIError
 from app.services.insight_service import generate_insight_draft
+from app.services.narrative_review_service import (
+    generate_reviewed_insight,
+    NarrativeReviewError,
+)
 
 from app.services.file_service import get_dataset_file_path
 from app.services.profiling_service import profile_dataset
@@ -160,6 +164,58 @@ def preview_insight_draft(
         raise HTTPException(
             status_code=503,
             detail="AI insight service is not configured.",
+        )
+
+    except ArithmeticError:
+        raise HTTPException(
+            status_code=500,
+            detail="Independent calculation verification failed.",
+        )
+
+
+@router.post("/analysis/insights/review")
+def review_generated_insight(
+    request: AnalysisQuestionRequest,
+):
+    """
+    Generates an evidence-grounded insight,
+    verifies structured facts, and reviews
+    the free-text narrative.
+    """
+    try:
+        return generate_reviewed_insight(
+            dataset_id=request.dataset_id,
+            question=request.question,
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found.",
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        )
+
+    except NarrativeReviewError:
+        raise HTTPException(
+            status_code=502,
+            detail="AI narrative review returned an invalid result.",
+        )
+
+    except OpenAIError:
+        raise HTTPException(
+            status_code=502,
+            detail="AI narrative review service is unavailable.",
+        )
+
+    except RuntimeError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI narrative review service is not configured.",
         )
 
     except ArithmeticError:
