@@ -7,9 +7,11 @@ import DatasetPreview from "./components/DatasetPreview";
 import SuggestedQuestions from "./components/SuggestedQuestions";
 import QuestionBox from "./components/QuestionBox";
 import AnalysisResult from "./components/AnalysisResult";
+import InsightReviewPanel from "./components/InsightReviewPanel";
 
 import {
   askDatasetQuestion,
+  reviewDatasetInsight,
   getAnalysisError,
 } from "./api/client";
 
@@ -25,17 +27,36 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState("");
 
+  const [insightReview, setInsightReview] = useState(null);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [insightError, setInsightError] = useState("");
+
+  const insightRequest = useRef(null);
   const activeRequest = useRef(null);
 
 
   useEffect(() => {
     return () => {
       activeRequest.current?.abort();
+      insightRequest.current?.abort();
     };
   }, []);
 
 
+  function cancelActiveInsightReview() {
+    insightRequest.current?.abort();
+
+    insightRequest.current = null;
+
+    setIsReviewing(false);
+    setInsightReview(null);
+    setInsightError("");
+  }
+
+
   function cancelActiveAnalysis() {
+    cancelActiveInsightReview();
+
     activeRequest.current?.abort();
     activeRequest.current = null;
     setIsAnalyzing(false);
@@ -91,6 +112,8 @@ function App() {
   function handlePlannerModeChange(newMode) {
     if (isAnalyzing) return;
 
+    cancelActiveInsightReview();
+
     setPlannerMode(newMode);
     setAnalysisResult(null);
     setError("");
@@ -109,6 +132,8 @@ function App() {
       setError("Please enter a question.");
       return;
     }
+
+    cancelActiveInsightReview();
 
     const controller = new AbortController();
     activeRequest.current = controller;
@@ -141,6 +166,63 @@ function App() {
       if (activeRequest.current === controller) {
         activeRequest.current = null;
         setIsAnalyzing(false);
+      }
+    }
+  }
+
+
+  const supportedInsightTypes = [
+    "groupby_aggregation_desc",
+    "groupby_aggregation_asc",
+    "time_trend",
+    "correlation",
+  ];
+
+  const canReviewInsight =
+    Boolean(analysisResult) &&
+    plannerMode === "ai" &&
+    analysisResult.evaluation?.status === "passed" &&
+    supportedInsightTypes.includes(
+      analysisResult.analysis_plan?.analysis_type
+    );
+
+
+  async function handleReviewInsight() {
+    if (!canReviewInsight || isReviewing) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    insightRequest.current = controller;
+
+    setIsReviewing(true);
+    setInsightError("");
+    setInsightReview(null);
+
+    try {
+      const result = await reviewDatasetInsight(
+        dataset.dataset_id,
+        question.trim(),
+        controller.signal
+      );
+
+      if (insightRequest.current === controller) {
+        setInsightReview(result);
+      }
+
+    } catch (err) {
+      if (
+        !controller.signal.aborted &&
+        insightRequest.current === controller
+      ) {
+        setInsightError(getAnalysisError(err));
+      }
+
+    } finally {
+      if (insightRequest.current === controller) {
+        insightRequest.current = null;
+        setIsReviewing(false);
       }
     }
   }
@@ -193,6 +275,15 @@ function App() {
 
       <AnalysisResult
         result={analysisResult}
+      />
+
+      <InsightReviewPanel
+        analysisReady={Boolean(analysisResult)}
+        enabled={canReviewInsight}
+        loading={isReviewing}
+        review={insightReview}
+        error={insightError}
+        onReview={handleReviewInsight}
       />
     </main>
   );

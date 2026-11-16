@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -20,6 +21,33 @@ REQUIRED_SECTIONS = {
     "observation",
     "business_implication",
 }
+
+
+CURRENCY_PATTERN = re.compile(
+    r"[$€£¥]|\b(?:USD|CAD|EUR|GBP|INR|"
+    r"dollars?|euros?|pounds?|rupees?)\b",
+    re.IGNORECASE,
+)
+
+
+def evidence_specifies_currency(evidence: dict) -> bool:
+    """
+    Currency must be explicitly documented in
+    the verified calculation metadata.
+    """
+    trace = evidence.get("E1", {}).get("data", {})
+    metadata = [
+        trace.get("metric", ""),
+        trace.get("x_metric", ""),
+        trace.get("y_metric", ""),
+        trace.get("currency", ""),
+        trace.get("unit", ""),
+    ]
+
+    return any(
+        CURRENCY_PATTERN.search(str(value))
+        for value in metadata
+    )
 
 
 class NarrativeReviewError(Exception):
@@ -242,6 +270,28 @@ def review_insight_narrative(
                 "A flagged narrative section requires "
                 "a suggested rewrite."
             )
+
+    # Deterministic safeguard:
+    # Do not allow invented currency denominations.
+    if not evidence_specifies_currency(evidence):
+        for section in sections:
+            narrative_text = draft.get(
+                section.section,
+                "",
+            )
+
+            if CURRENCY_PATTERN.search(narrative_text):
+                section.verdict = "unsupported"
+                section.reason = (
+                    "The narrative specifies a currency, "
+                    "but the verified calculation evidence "
+                    "does not establish any currency unit."
+                )
+                section.evidence_ids = []
+                section.suggested_rewrite = (
+                    "Report the verified numerical value "
+                    "without assuming a currency."
+                )
 
     # Step 7: Calculate the overall verdict in Python.
     verdicts = {

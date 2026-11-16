@@ -29,7 +29,10 @@ function ResultChart({ chart }) {
               <XAxis dataKey={chart.x_key} />
               <YAxis />
               <Tooltip />
-              <Bar dataKey={chart.y_key} />
+              <Bar
+                dataKey={chart.y_key}
+                fill="var(--chart-bar)"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -78,7 +81,10 @@ function ResultChart({ chart }) {
               />
               <YAxis allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey={chart.y_key} />
+              <Bar
+                dataKey={chart.y_key}
+                fill="var(--chart-bar)"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

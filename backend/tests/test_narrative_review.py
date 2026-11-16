@@ -167,6 +167,50 @@ def test_unsupported_statement_is_flagged(monkeypatch):
     assert result["status"] == "flagged"
 
 
+@pytest.mark.parametrize(
+    "section_name",
+    ["headline", "observation", "business_implication"],
+)
+def test_undocumented_currency_overrides_supported_review(monkeypatch, section_name):
+    mock_reviewer(monkeypatch, make_sections())
+    draft = {**DRAFT, section_name: "North has revenue of $110.25."}
+
+    result = narrative_review_service.review_insight_narrative(
+        draft=draft,
+        evidence=EVIDENCE,
+        claim_verification=CLAIM_VERIFICATION,
+    )
+
+    assert result["status"] == "flagged"
+    section = next(
+        item for item in result["sections"]
+        if item["section"] == section_name
+    )
+    assert section["verdict"] == "unsupported"
+    assert "does not establish any currency unit" in section["reason"]
+    assert section["evidence_ids"] == []
+    assert "without assuming a currency" in section["suggested_rewrite"]
+
+
+def test_documented_currency_preserves_supported_review(monkeypatch):
+    mock_reviewer(monkeypatch, make_sections())
+    evidence = {
+        **EVIDENCE,
+        "E1": {
+            **EVIDENCE["E1"],
+            "data": {**EVIDENCE["E1"]["data"], "currency": "CAD"},
+        },
+    }
+
+    result = narrative_review_service.review_insight_narrative(
+        draft={**DRAFT, "observation": "North has revenue of 110.25 CAD."},
+        evidence=evidence,
+        claim_verification=CLAIM_VERIFICATION,
+    )
+
+    assert result["status"] == "supported"
+
+
 def test_failed_structured_claim_blocks_review():
     result = narrative_review_service.review_insight_narrative(
         draft=DRAFT,
@@ -252,3 +296,30 @@ def test_reviewed_insight_gets_new_status(monkeypatch):
     assert result["narrative_review"]["status"] == (
         "qualified"
     )
+def test_unsupported_currency_is_flagged(monkeypatch):
+    sections = make_sections()
+
+    mock_reviewer(monkeypatch, sections)
+
+    draft = {
+        **DRAFT,
+        "observation": (
+            "North generated $110.25 in revenue."
+        ),
+    }
+
+    result = narrative_review_service.review_insight_narrative(
+        draft=draft,
+        evidence=EVIDENCE,
+        claim_verification=CLAIM_VERIFICATION,
+    )
+
+    assert result["status"] == "flagged"
+
+    observation = next(
+        section
+        for section in result["sections"]
+        if section["section"] == "observation"
+    )
+
+    assert observation["verdict"] == "unsupported"

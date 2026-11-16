@@ -47,6 +47,24 @@ export async function askDatasetQuestion(
 }
 
 
+export async function reviewDatasetInsight(
+  datasetId,
+  question,
+  signal
+) {
+  const response = await axios.post(
+    `${API_BASE_URL}/analysis/insights/review`,
+    {
+      dataset_id: datasetId,
+      question: question.trim(),
+    },
+    { signal }
+  );
+
+  return response.data;
+}
+
+
 export function getAnalysisError(error) {
   const detail = error.response?.data?.detail;
 
