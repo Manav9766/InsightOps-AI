@@ -10,7 +10,7 @@ from app.services.llm_execution_service import (
     analyze_dataset_with_llm,
 )
 
-
+from app.services.claim_verification_service import verify_factual_claims
 load_dotenv()
 
 
@@ -85,6 +85,67 @@ follow_up_questions:
 Suggest useful analytical questions.
 
 Return the structured response only.
+"""
+
+SYSTEM_PROMPT += """
+
+STRUCTURED FACTUAL CLAIM REQUIREMENTS:
+
+Generate between 1 and 3 factual_claims.
+
+Each factual claim must use one of these kinds:
+
+1. group_extreme
+
+Use this for highest/lowest grouped totals.
+
+Example:
+kind: group_extreme
+metric: revenue
+dimension: region
+member: North
+rank: highest
+value: 110.25
+evidence_id: E2
+
+2. monthly_total
+
+Use this for an individual verified monthly total.
+
+Example:
+kind: monthly_total
+metric: revenue
+dimension: period
+member: 2026-03
+rank: null
+value: 114.98
+evidence_id: E2
+
+3. correlation
+
+Use this for a verified Pearson coefficient.
+
+Example:
+kind: correlation
+metric: revenue
+dimension: quantity
+member: null
+rank: null
+value: 0.908
+evidence_id: E1
+
+IMPORTANT:
+
+- Use exact metric and dimension names.
+- Copy numerical values from the evidence.
+- Never create unsupported claims.
+- Set irrelevant optional fields to null.
+- Use only evidence identifiers present in the input.
+- Do not include business hypotheses as factual claims.
+- Profitability, causation and future performance
+  must not be asserted without supporting evidence.
+
+All fields in the structured schema are required.
 """
 
 
@@ -231,6 +292,18 @@ def generate_insight_draft(
             "The insight must include limitations."
         )
 
+    if not 1 <= len(draft.factual_claims) <= 3:
+        raise ValueError(
+            "The insight must contain between "
+            "1 and 3 structured factual claims."
+        )
+
+    claim_verification = verify_factual_claims(
+        analysis=analysis,
+        evidence=evidence,
+        claims=draft.factual_claims,
+    )
+
     # Step 8: Return draft and evidence separately.
     return {
         "dataset_id": dataset_id,
@@ -240,4 +313,6 @@ def generate_insight_draft(
         "insight_draft": draft.model_dump(),
         "evidence": evidence,
         "calculation_evaluation": evaluation,
+        # New deterministic factual claim results.
+        "claim_verification": claim_verification,
     }

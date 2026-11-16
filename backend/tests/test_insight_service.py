@@ -3,7 +3,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.models.insight_schema import InsightDraft
+from app.models.insight_schema import (
+    InsightDraft,
+    FactualClaim,
+)
 from app.services import insight_service
 
 
@@ -77,6 +80,17 @@ def test_valid_draft_returns_unverified_status(monkeypatch):
         observation="North leads regional revenue.",
         business_implication="The regional difference warrants investigation.",
         evidence_ids=["E1", "E2"],
+        factual_claims=[
+            FactualClaim(
+                kind="group_extreme",
+                metric="revenue",
+                dimension="region",
+                member="North",
+                rank="highest",
+                value=110.25,
+                evidence_id="E2",
+            ),
+        ],
         limitations=["Only a small sample is available."],
         follow_up_questions=[
             "Which products drive North's revenue?"
@@ -114,3 +128,5 @@ def test_valid_draft_returns_unverified_status(monkeypatch):
     assert result["calculation_evaluation"]["status"] == (
         "passed"
     )
+
+    assert result["claim_verification"]["status"] == "passed"
