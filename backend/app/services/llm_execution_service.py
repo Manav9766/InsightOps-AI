@@ -1,6 +1,7 @@
 
 import pandas as pd
 
+from app.services.evaluation_service import verify_calculation
 from app.services.file_service import get_dataset_file_path
 from app.services.profiling_service import profile_dataset
 from app.services.llm_planning_service import create_llm_analysis_plan
@@ -119,6 +120,18 @@ def analyze_dataset_with_llm(
         y_column=metadata.get("y_column"),
     )
 
+    evaluation = verify_calculation(
+        df=df,
+        analysis_type=analysis_type,
+        result=result,
+        chart=chart,
+    )
+
+    if evaluation["status"] == "failed":
+        raise ArithmeticError(
+            "Independent calculation verification failed."
+        )
+
     return {
         "dataset_id": dataset_id,
         "question": question,
@@ -128,4 +141,5 @@ def analyze_dataset_with_llm(
         "table": result["table"],
         "chart": chart,
         "calculation_trace": result["calculation_trace"],
+        "evaluation": evaluation,
     }
