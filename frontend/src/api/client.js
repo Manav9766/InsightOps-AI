@@ -50,13 +50,21 @@ export async function askDatasetQuestion(
 export async function reviewDatasetInsight(
   datasetId,
   question,
+  analysisId,
   signal
 ) {
+  if (!analysisId) {
+    throw new Error(
+      "A verified analysis ID is required."
+    );
+  }
+
   const response = await axios.post(
     `${API_BASE_URL}/analysis/insights/review`,
     {
       dataset_id: datasetId,
       question: question.trim(),
+      analysis_id: analysisId,
     },
     { signal }
   );
@@ -91,4 +99,29 @@ export function getAnalysisError(error) {
   }
 
   return error.message || "Analysis failed. Please try again.";
+}
+
+export async function listAnalysisHistory(signal) {
+  const response = await axios.get(
+    `${API_BASE_URL}/analysis/history`,
+    {
+      params: { limit: 50 },
+      signal,
+    }
+  );
+
+  return response.data;
+}
+
+
+export async function getSavedAnalysis(
+  analysisId,
+  signal
+) {
+  const response = await axios.get(
+    `${API_BASE_URL}/analysis/history/${encodeURIComponent(analysisId)}`,
+    { signal }
+  );
+
+  return response.data;
 }

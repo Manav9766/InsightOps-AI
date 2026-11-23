@@ -428,3 +428,54 @@ textarea::placeholder {
     flex-direction: column;
   }
 }
+
+/* P5-03: Analysis History */
+
+.analysis-history {
+  margin-top: 24px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.history-header h2 {
+  margin-top: 0;
+}
+
+.analysis-history .table-wrapper {
+  overflow-x: auto;
+}
+
+.analysis-history table {
+  min-width: 650px;
+}
+
+.analysis-history td {
+  vertical-align: middle;
+}
+
+.analysis-history td button {
+  white-space: nowrap;
+}
+
+.history-detail {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.history-detail > .card {
+  margin-top: 18px;
+}
+
+@media (max-width: 600px) {
+  .history-header {
+    flex-direction: column;
+  }
+}

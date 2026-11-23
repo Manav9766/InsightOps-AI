@@ -12,3 +12,9 @@ venv/
 
 # Uploaded datasets
 app/storage/uploads/
+
+# Persistent local SQLite databases
+app/storage/*.db
+app/storage/*.db-wal
+app/storage/*.db-shm
+app/storage/*.db-journal

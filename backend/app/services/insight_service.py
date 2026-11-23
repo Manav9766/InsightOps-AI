@@ -251,6 +251,7 @@ def build_evidence_packet(analysis: dict) -> dict:
 def generate_insight_draft(
     dataset_id: str,
     question: str,
+    verified_analysis: dict | None = None,
 ) -> dict:
     """
     Executes an AI-planned analysis, requires
@@ -258,11 +259,25 @@ def generate_insight_draft(
     generates an evidence-linked insight draft.
     """
 
-    # Step 1: Run the existing analysis pipeline.
-    analysis = analyze_dataset_with_llm(
-        dataset_id=dataset_id,
-        question=question,
-    )
+    # Step 1: Reuse an existing verified analysis
+    # when one is supplied.
+    if verified_analysis is not None:
+        analysis = verified_analysis
+
+        if (
+            analysis.get("dataset_id") != dataset_id
+            or analysis.get("question") != question
+        ):
+            raise ValueError(
+                "Verified analysis does not match "
+                "the dataset and question."
+            )
+    else:
+        # Backward-compatible standalone execution.
+        analysis = analyze_dataset_with_llm(
+            dataset_id=dataset_id,
+            question=question,
+        )
 
     analysis_type = analysis["analysis_plan"]["analysis_type"]
 

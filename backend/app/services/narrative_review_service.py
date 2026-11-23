@@ -11,6 +11,9 @@ from app.models.narrative_review_schema import (
 from app.services.insight_service import (
     generate_insight_draft,
 )
+from app.services.evidence_coverage_service import (
+    build_evidence_coverage,
+)
 
 
 load_dotenv()
@@ -338,15 +341,25 @@ def review_insight_narrative(
 def generate_reviewed_insight(
     dataset_id: str,
     question: str,
+    verified_analysis: dict | None = None,
 ) -> dict:
     """
     Runs the existing insight pipeline and then
     performs narrative review.
     """
 
+    insight_kwargs = {
+        "dataset_id": dataset_id,
+        "question": question,
+    }
+
+    if verified_analysis is not None:
+        insight_kwargs["verified_analysis"] = (
+            verified_analysis
+        )
+
     result = generate_insight_draft(
-        dataset_id=dataset_id,
-        question=question,
+        **insight_kwargs
     )
 
     narrative_review = review_insight_narrative(
@@ -365,5 +378,12 @@ def generate_reviewed_insight(
 
     else:
         result["insight_status"] = "reviewed_not_published"
+
+    # P4-06:
+    # Summarize evidence coverage after
+    # all verification stages have completed.
+    result["evidence_coverage"] = (
+        build_evidence_coverage(result)
+    )
 
     return result

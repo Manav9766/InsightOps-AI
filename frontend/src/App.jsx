@@ -8,6 +8,7 @@ import SuggestedQuestions from "./components/SuggestedQuestions";
 import QuestionBox from "./components/QuestionBox";
 import AnalysisResult from "./components/AnalysisResult";
 import InsightReviewPanel from "./components/InsightReviewPanel";
+import AnalysisHistory from "./components/AnalysisHistory";
 
 import {
   askDatasetQuestion,
@@ -179,7 +180,7 @@ function App() {
   ];
 
   const canReviewInsight =
-    Boolean(analysisResult) &&
+    Boolean(analysisResult?.analysis_id) &&
     plannerMode === "ai" &&
     analysisResult.evaluation?.status === "passed" &&
     supportedInsightTypes.includes(
@@ -200,14 +201,26 @@ function App() {
     setInsightError("");
     setInsightReview(null);
 
+    const expectedAnalysisId = analysisResult.analysis_id;
+
     try {
       const result = await reviewDatasetInsight(
         dataset.dataset_id,
         question.trim(),
+        expectedAnalysisId,
         controller.signal
       );
 
       if (insightRequest.current === controller) {
+        if (result.analysis_id !== expectedAnalysisId) {
+          setInsightError(
+            "The reviewed insight does not match the " +
+            "displayed analysis. Please analyze again."
+          );
+
+          return;
+        }
+
         setInsightReview(result);
       }
 
@@ -285,6 +298,8 @@ function App() {
         error={insightError}
         onReview={handleReviewInsight}
       />
+
+      <AnalysisHistory />
     </main>
   );
 }

@@ -39,6 +39,8 @@ function InsightReviewPanel({
   const verifiedFacts =
     review?.claim_verification?.verified_facts || [];
 
+  const coverage = review?.evidence_coverage;
+
   const allSectionsReviewed =
     SECTION_CONFIG.every(({ key }) =>
       sections.some(
@@ -76,9 +78,11 @@ function InsightReviewPanel({
       </p>
 
       <p className="muted">
-        This request runs a fresh analysis of your dataset.
-        Its evidence is displayed separately from the
-        earlier chart.
+        This insight uses the same independently verified
+        analysis displayed in the chart and supporting table.
+        The calculations are reused without rerunning the
+        analysis. Only the AI-generated business narrative
+        and its review are new.
       </p>
 
       {!enabled && (
@@ -165,6 +169,142 @@ function InsightReviewPanel({
               </span>
             </div>
           </div>
+
+          {coverage && (
+            <div className="review-summary">
+              <div className="review-section-header">
+                <h3>Evidence Coverage</h3>
+
+                <span
+                  className={`review-badge ${
+                    coverage.status === "direct_support"
+                      ? "review-badge--safe"
+                      : coverage.status === "qualified"
+                      ? "review-badge--caution"
+                      : "review-badge--bad"
+                  }`}
+                >
+                  {coverage.status === "direct_support"
+                    ? "Direct Support"
+                    : coverage.status === "qualified"
+                    ? "Qualified"
+                    : "Insufficient"}
+                </span>
+              </div>
+
+              <p className="muted">
+                This summary shows how much of the
+                generated insight is supported by the
+                available evidence and review results.
+              </p>
+
+              <div className="review-status-row">
+                <span>
+                  Independent calculation
+                </span>
+
+                <strong>
+                  {coverage.calculation_verified
+                    ? "Verified"
+                    : "Not verified"}
+                </strong>
+              </div>
+
+              <div className="review-status-row">
+                <span>
+                  Structured factual claims
+                </span>
+
+                <strong>
+                  {coverage.structured_claims.supported}
+                  {" of "}
+                  {coverage.structured_claims.total}
+                  {" supported"}
+                </strong>
+              </div>
+
+              <div className="review-status-row">
+                <span>
+                  Narrative sections reviewed
+                </span>
+
+                <strong>
+                  {coverage.narrative_sections.reviewed}
+                  {" of "}
+                  {coverage.narrative_sections.total}
+                </strong>
+              </div>
+
+              <div className="review-status-row">
+                <span>
+                  AI-reviewed supported sections
+                </span>
+
+                <strong>
+                  {coverage.narrative_sections.supported}
+                </strong>
+              </div>
+
+              <div className="review-status-row">
+                <span>
+                  Hypotheses
+                </span>
+
+                <strong>
+                  {coverage.narrative_sections.hypothesis}
+                </strong>
+              </div>
+
+              <div className="review-status-row">
+                <span>
+                  Unsupported sections
+                </span>
+
+                <strong>
+                  {coverage.narrative_sections.unsupported}
+                </strong>
+              </div>
+
+              {coverage.supporting_table && (
+                <div className="review-status-row">
+                  <span>
+                    Supporting table evidence
+                  </span>
+
+                  <strong>
+                    {coverage.supporting_table.included_rows}
+                    {" of "}
+                    {coverage.supporting_table.total_rows}
+                    {" rows included"}
+                  </strong>
+                </div>
+              )}
+
+              {coverage.gaps?.length > 0 && (
+                <div className="review-suggestion">
+                  <h4>
+                    Evidence Gaps & Cautions
+                  </h4>
+
+                  <ul>
+                    {coverage.gaps.map((gap, index) => (
+                      <li key={index}>
+                        {gap}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="muted">
+                These indicators summarize verification
+                results and AI-assisted narrative
+                assessments. They are not statistical
+                confidence scores or guarantees
+                of factual correctness.
+              </p>
+            </div>
+          )}
 
           {claimsPassed && verifiedFacts.length > 0 && (
             <div className="result-box">

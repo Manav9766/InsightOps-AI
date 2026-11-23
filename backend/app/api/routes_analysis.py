@@ -1,6 +1,11 @@
+import sqlite3
+
 from fastapi import APIRouter, HTTPException
 
-from app.models.schemas import AnalysisQuestionRequest
+from app.models.schemas import (
+    AnalysisQuestionRequest,
+    InsightReviewRequest,
+)
 from app.services.analysis_service import answer_dataset_question
 
 from openai import OpenAIError
@@ -14,6 +19,14 @@ from app.services.file_service import get_dataset_file_path
 from app.services.profiling_service import profile_dataset
 from app.services.llm_planning_service import create_llm_analysis_plan
 from app.services.llm_execution_service import analyze_dataset_with_llm
+from app.services.verified_analysis_store import (
+    CachedAnalysisNotFound,
+    get_verified_analysis,
+    store_verified_analysis,
+)
+from app.services.analysis_history_service import (
+    save_analysis_result,
+)
 router = APIRouter(tags=["Analysis"])
 
 
@@ -99,16 +112,33 @@ def execute_llm_analysis(
     through the existing pandas analysis engine.
     """
     try:
-        return analyze_dataset_with_llm(
+        result = analyze_dataset_with_llm(
             dataset_id=request.dataset_id,
             question=request.question,
         )
+
+        evaluation = result.get("evaluation") or {}
+
+        if evaluation.get("status") == "passed":
+            analysis_id = store_verified_analysis(result)
+            result["analysis_id"] = analysis_id
+
+            # P5-02: Persist verified analysis.
+            save_analysis_result(result)
+
+        return result
 
     except FileNotFoundError:
         raise HTTPException(
             status_code=404,
             detail="Dataset not found.",
         )
+
+    except (sqlite3.Error, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Persistent analysis storage is unavailable.",
+        ) from exc
 
     except ValueError as exc:
         raise HTTPException(
@@ -175,7 +205,7 @@ def preview_insight_draft(
 
 @router.post("/analysis/insights/review")
 def review_generated_insight(
-    request: AnalysisQuestionRequest,
+    request: InsightReviewRequest,
 ):
     """
     Generates an evidence-grounded insight,
@@ -183,9 +213,32 @@ def review_generated_insight(
     the free-text narrative.
     """
     try:
-        return generate_reviewed_insight(
+        if request.analysis_id is None:
+            return generate_reviewed_insight(
+                dataset_id=request.dataset_id,
+                question=request.question,
+            )
+
+        analysis = get_verified_analysis(
+            analysis_id=request.analysis_id,
             dataset_id=request.dataset_id,
             question=request.question,
+        )
+
+        result = generate_reviewed_insight(
+            dataset_id=request.dataset_id,
+            question=request.question,
+            verified_analysis=analysis,
+        )
+
+        result["analysis_id"] = request.analysis_id
+
+        return result
+
+    except CachedAnalysisNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
         )
 
     except FileNotFoundError:
@@ -203,23 +256,35 @@ def review_generated_insight(
     except NarrativeReviewError:
         raise HTTPException(
             status_code=502,
-            detail="AI narrative review returned an invalid result.",
+            detail=(
+                "AI narrative review returned "
+                "an invalid result."
+            ),
         )
 
     except OpenAIError:
         raise HTTPException(
             status_code=502,
-            detail="AI narrative review service is unavailable.",
+            detail=(
+                "AI narrative review service "
+                "is unavailable."
+            ),
         )
 
     except RuntimeError:
         raise HTTPException(
             status_code=503,
-            detail="AI narrative review service is not configured.",
+            detail=(
+                "AI narrative review service "
+                "is not configured."
+            ),
         )
 
     except ArithmeticError:
         raise HTTPException(
             status_code=500,
-            detail="Independent calculation verification failed.",
+            detail=(
+                "Independent calculation "
+                "verification failed."
+            ),
         )
