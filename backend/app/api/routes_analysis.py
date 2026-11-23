@@ -27,6 +27,9 @@ from app.services.verified_analysis_store import (
 from app.services.analysis_history_service import (
     save_analysis_result,
 )
+from app.services.saved_report_service import (
+    save_reviewed_report,
+)
 router = APIRouter(tags=["Analysis"])
 
 
@@ -233,6 +236,11 @@ def review_generated_insight(
 
         result["analysis_id"] = request.analysis_id
 
+        # P5-04: Save the complete server-generated
+        # review as an unpublished report snapshot.
+        report_id = save_reviewed_report(result)
+        result["report_id"] = report_id
+
         return result
 
     except CachedAnalysisNotFound as exc:
@@ -246,6 +254,12 @@ def review_generated_insight(
             status_code=404,
             detail="Dataset not found.",
         )
+
+    except (sqlite3.Error, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Saved report storage is unavailable.",
+        ) from exc
 
     except ValueError as exc:
         raise HTTPException(

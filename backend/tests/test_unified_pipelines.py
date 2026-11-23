@@ -74,6 +74,12 @@ def test_review_reuses_original_execution(monkeypatch):
     )
 
     monkeypatch.setattr(
+        routes_analysis,
+        "save_reviewed_report",
+        lambda result: "f" * 32,
+    )
+
+    monkeypatch.setattr(
         insight_service,
         "analyze_dataset_with_llm",
         fail_if_reexecuted,

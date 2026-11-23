@@ -21,6 +21,7 @@ function InsightReviewPanel({
   review,
   error,
   onReview,
+  readOnly = false,
 }) {
   if (!analysisReady) return null;
 
@@ -68,9 +69,18 @@ function InsightReviewPanel({
     Boolean(review) && !canDisplayNarrative;
 
   return (
-    <section className="card insight-review-panel">
-      <h2>Evidence-Grounded AI Insights</h2>
+   
+<section className="card insight-review-panel">
+  <h2>Evidence-Grounded AI Insights</h2>
 
+  {readOnly ? (
+    <p className="muted">
+      Saved business report snapshot. The original
+      verification results and narrative review are
+      displayed without generating a new analysis.
+    </p>
+  ) : (
+    <>
       <p className="muted">
         Generate a business insight with calculation
         verification, structured claim checks, and
@@ -115,6 +125,11 @@ function InsightReviewPanel({
           {error}
         </p>
       )}
+    </>
+  )}
+
+  {/* KEEP YOUR EXISTING {review && (...)} JSX HERE */}
+
 
       {review && (
         <>

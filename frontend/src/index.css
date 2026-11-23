@@ -479,3 +479,72 @@ textarea::placeholder {
     flex-direction: column;
   }
 }
+
+/* P5-04: Saved Business Reports */
+
+.saved-business-reports {
+  margin-top: 24px;
+}
+
+.saved-reports-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.saved-reports-header h2 {
+  margin-top: 0;
+}
+
+.saved-business-reports .table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.saved-business-reports table {
+  width: 100%;
+  min-width: 720px;
+}
+
+.saved-business-reports td {
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.saved-business-reports td button {
+  white-space: nowrap;
+}
+
+.saved-report-detail {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border, #334155);
+}
+
+.saved-report-detail > h3 {
+  margin-top: 0;
+}
+
+.saved-report-detail .insight-review-panel {
+  margin-top: 20px;
+}
+
+@media (max-width: 600px) {
+  .saved-reports-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.saved-business-reports .review-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.saved-business-reports td {
+  overflow-wrap: normal;
+}

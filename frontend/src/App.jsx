@@ -9,6 +9,7 @@ import QuestionBox from "./components/QuestionBox";
 import AnalysisResult from "./components/AnalysisResult";
 import InsightReviewPanel from "./components/InsightReviewPanel";
 import AnalysisHistory from "./components/AnalysisHistory";
+import SavedBusinessReports from "./components/SavedBusinessReports";
 
 import {
   askDatasetQuestion,
@@ -31,6 +32,7 @@ function App() {
   const [insightReview, setInsightReview] = useState(null);
   const [isReviewing, setIsReviewing] = useState(false);
   const [insightError, setInsightError] = useState("");
+  const [reportsRefreshToken, setReportsRefreshToken] = useState(0);
 
   const insightRequest = useRef(null);
   const activeRequest = useRef(null);
@@ -222,6 +224,14 @@ function App() {
         }
 
         setInsightReview(result);
+
+        if (result.report_id) {
+          setReportsRefreshToken((previous) => previous + 1);
+        } else {
+          setInsightError(
+            "The insight was reviewed, but the server did not return a saved report ID."
+          );
+        }
       }
 
     } catch (err) {
@@ -300,6 +310,8 @@ function App() {
       />
 
       <AnalysisHistory />
+
+      <SavedBusinessReports refreshToken={reportsRefreshToken} />
     </main>
   );
 }

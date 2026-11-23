@@ -136,6 +136,11 @@ def test_review_insight_reuses_original_analysis(monkeypatch):
         return {"insight_status": "reviewed_not_published"}
 
     monkeypatch.setattr(routes_analysis, "generate_reviewed_insight", fake_review)
+    monkeypatch.setattr(
+        routes_analysis,
+        "save_reviewed_report",
+        lambda result: "f" * 32,
+    )
 
     response = client.post(
         "/api/analysis/insights/review",
@@ -144,6 +149,7 @@ def test_review_insight_reuses_original_analysis(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["analysis_id"] == analysis_id
+    assert response.json()["report_id"] == "f" * 32
 
 
 def test_missing_cached_analysis_returns_404_without_generating(monkeypatch):

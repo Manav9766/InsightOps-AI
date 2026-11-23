@@ -125,3 +125,28 @@ export async function getSavedAnalysis(
 
   return response.data;
 }
+
+export async function listSavedBusinessReports(signal) {
+  const response = await axios.get(
+    `${API_BASE_URL}/analysis/reports`,
+    {
+      params: { limit: 50 },
+      signal,
+    }
+  );
+
+  return response.data;
+}
+
+
+export async function getSavedBusinessReport(
+  reportId,
+  signal
+) {
+  const response = await axios.get(
+    `${API_BASE_URL}/analysis/reports/${encodeURIComponent(reportId)}`,
+    { signal }
+  );
+
+  return response.data;
+}
